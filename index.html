@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tissue Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f1;--card:#fff;--ink:#17261d;--mute:#5a6b60;--line:#d3ddd5;--acc:#2e6b4a;--accbg:#e1f0e6;--onacc:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101813;--card:#18231c;--ink:#e6efe8;--mute:#9db0a3;--line:#2b3b30;--acc:#7cc79a;--accbg:#1f3528;--onacc:#0d1a12}}
+:root[data-theme="dark"]{--bg:#101813;--card:#18231c;--ink:#e6efe8;--mute:#9db0a3;--line:#2b3b30;--acc:#7cc79a;--accbg:#1f3528;--onacc:#0d1a12}
+body[data-mode="animal"]{--acc:#5b4fa8;--accbg:#e9e6f7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body[data-mode="animal"]{--acc:#b3a8f0;--accbg:#2a2548}}
+:root[data-theme="dark"] body[data-mode="animal"]{--acc:#b3a8f0;--accbg:#2a2548}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font:700 clamp(26px,5vw,38px)/1.1 "Bricolage Grotesque",system-ui,sans-serif;margin:4px 0 6px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 18px;max-width:60ch}
+.tabs{display:flex;gap:6px;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:14px;width:max-content;max-width:100%;margin-bottom:18px}
+.tabs button{font:600 16px "Source Sans 3",system-ui,sans-serif;border:0;background:transparent;color:var(--mute);padding:9px 20px;border-radius:10px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--acc);color:var(--onacc)}
+.grid{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+.list{display:flex;flex-direction:column;gap:8px}
+.part{text-align:left;font:600 16px "Source Sans 3",system-ui,sans-serif;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;gap:10px;align-items:center}
+.part small{display:block;font-weight:400;color:var(--mute);font-size:14px}
+.part .dot{width:30px;height:30px;flex:none;border-radius:50%;background:var(--accbg);color:var(--acc);display:grid;place-items:center;font-weight:700;font-size:14px}
+.part[aria-pressed="true"]{border-color:var(--acc);box-shadow:inset 4px 0 0 var(--acc)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;min-height:260px}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;font-size:14px}
+.crumbs button{border:0;background:var(--accbg);color:var(--acc);font:600 14px "Source Sans 3",system-ui,sans-serif;padding:3px 10px;border-radius:99px;cursor:pointer}
+.crumbs span{color:var(--mute);align-self:center}
+.panel h2{font:700 26px/1.15 "Bricolage Grotesque",system-ui,sans-serif;margin:0 0 8px}
+.meaning{margin:0 0 18px;font-size:18px}
+.lbl{color:var(--mute);font-size:15px;margin:0 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 15px "Source Sans 3",system-ui,sans-serif;color:var(--acc);background:var(--accbg);border:1px solid transparent;border-radius:10px;padding:8px 13px;cursor:pointer}
+.chip.more::after{content:" +"}
+.end{color:var(--mute);margin:0}
+.empty{color:var(--mute)}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.panel .body{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(4px)}}}
+</style>
+</head>
+<body data-mode="plant">
+<div class="wrap">
+<h1>Tissue Simulator</h1>
+<p class="sub">Choose Plant or Animal, tap a part, then tap its smaller parts to see what each one means.</p>
+<div class="tabs" role="group" aria-label="Choose tissue type">
+<button id="t-plant" aria-pressed="true">Plant tissues</button>
+<button id="t-animal" aria-pressed="false">Animal tissues</button>
+</div>
+<div class="grid">
+<div class="list" id="list"></div>
+<div class="panel" id="panel"></div>
+</div>
+</div>
+<script>
+const N=(n,m,c)=>({n,m,c:c||[]});
+const DATA={
+plant:[
+N("Epidermal cells and root hairs","The outer skin of a young plant. Tightly packed cells protect it, limit water loss, and in roots absorb water.",[
+N("Epidermal cells","The outermost layer of young roots, stems, and leaves. Thin-walled, closely packed, and mostly transparent."),
+N("Waxy cuticle","A waxy coating over above-ground epidermal cells. It reduces water loss."),
+N("Guard cells","Specialized epidermal cells that open and close the stomata."),
+N("Trichomes","Hair-like outgrowths of the epidermis that give protection."),
+N("Root hairs","Long, thin extensions of root epidermal cells. Thin walls and a large surface area absorb water (by osmosis) and minerals (often by active transport).")]),
+N("Endodermis","The innermost layer of the root cortex, forming a ring around the vascular tissue. It is a selective barrier that controls what enters the xylem.",[
+N("Suberin","A waxy, water-resistant substance in the cell walls. It limits uncontrolled water movement."),
+N("Lignin","A rigid substance in the cell walls that gives strength and barrier properties."),
+N("Plasma membrane","The selectively permeable membrane around the cell. It regulates which substances move in."),
+N("Passage cells","Endodermal cells with less suberin. They allow easier transport in some roots."),
+N("Casparian strip","A waterproof band in the endodermal cell walls. It blocks movement between cells, so water and minerals must cross the cell membrane where the plant can control what enters.")]),
+N("Parenchyma","The most common and versatile living plant cells. They form the bulk of soft tissue in leaves, stems, roots, and fruits, with thin, flexible primary walls and a large central vacuole.",[
+N("Chlorenchyma","Parenchyma with many chloroplasts. Its main function is photosynthesis. Common in leaves and green stems."),
+N("Aerenchyma","Parenchyma with large air spaces between cells. It helps gas exchange and gives buoyancy. Common in aquatic plants like lotus."),
+N("Storage parenchyma","Stores starch, sugars, proteins, or water in roots, stems, fruits, and seeds. Example: potato tuber."),
+N("Water-storage parenchyma","Specialized for storing large amounts of water. Common in succulents such as cactus."),
+N("Transfer (vascular) parenchyma","Has cell-wall structures that increase surface area for transport. It helps move nutrients and solutes."),
+N("Prosenchyma","Elongated parenchyma cells with a more specialized structure. Often linked with structural support and conducting water or nutrients.")]),
+N("Xylem","Vascular tissue that carries water and minerals upward from the roots to the stems and leaves, and gives mechanical support. Mature xylem is mostly dead.",[
+N("Tracheids","Long, tapered, hollow cells with thick lignified walls. They carry water through the plant."),
+N("Vessel elements","Wider tube cells joined end to end with perforation plates, forming long hollow tubes for water flow."),
+N("Xylem fibers","Strong cells with thick walls that provide support."),
+N("Xylem parenchyma","Living cells in the xylem that store materials."),
+N("Lignified walls","Thick walls stiffened with lignin. They make xylem waterproof and stop it from collapsing under pressure.")]),
+N("Phloem","Vascular tissue that carries food (mainly sucrose) made by photosynthesis to the parts of the plant that need or store it. It is made of mainly living cells and can move food in different directions.",[
+N("Sieve tube elements","The main transport cells. They are joined end to end and have sieve plates between cells."),
+N("Companion cells","Found beside sieve tube elements. They have a nucleus, keep the sieve tubes working, and help move sugars in and out of the phloem."),
+N("Phloem parenchyma","Living cells that store food and other materials and help move substances."),
+N("Phloem fibers","Strong, elongated cells with thick walls that give mechanical support. Usually dead when mature."),
+N("Source","Where sugar is produced or released. Example: mature leaves."),
+N("Sink","Where sugar is needed or stored. Examples: roots, fruits, seeds, growing tissues.")]),
+N("Stomata (guard cells)","Tiny pores mainly on leaves. Each pore (a stoma) is surrounded by a pair of guard cells that open and close it, letting CO\u2082 in and water vapor out.",[
+N("Guard cells","Two kidney-shaped cells with chloroplasts that control the pore. Water in makes them swell and bend, so the pore opens. Water out makes them relax, so it closes."),
+N("Subsidiary cells","Specialized cells beside the guard cells that support them and act as ion and water reservoirs, helping the guard cells change shape faster."),
+N("Epidermal cells","Cells forming the outer layer of the leaf. They surround the stomatal complex and give a rigid framework for the guard cells to bend against."),
+N("Stomatal pore","The opening between the guard cells where carbon dioxide, oxygen, and water vapor pass."),
+N("Thick inner walls","The guard cell walls facing the pore are thicker. This helps the cells bend and regulate the opening."),
+N("Thin outer walls","The guard cell walls away from the pore are thinner and more flexible, so the cells can change shape.")])
+],
+animal:[
+N("Epithelial tissue","Covers body surfaces, lines cavities and organs, and forms glands. Cells are tightly packed on a basement membrane. Functions: protection, absorption, secretion, filtration.",[
+N("By shape","Epithelium named for the shape of its cells.",[
+N("Squamous","Flat cells, like fish scales."),N("Cuboidal","Cube-shaped cells."),N("Columnar","Tall, column-shaped cells.")]),
+N("By number of layers","Epithelium named for how its cells are layered.",[
+N("Simple","A single layer of cells."),N("Stratified","Many stacked layers of cells."),N("Pseudostratified","One layer that looks stacked because the nuclei sit at different heights.")]),
+N("Glandular epithelium","Epithelium that forms glands and secretes substances.",[
+N("Exocrine","Secretes through ducts. Example: sweat glands."),N("Endocrine","Secretes hormones directly into the blood.")])]),
+N("Connective tissue","Connects, supports, protects, and binds other tissues. Its cells are scattered in an extracellular matrix of fibers and ground substance.",[
+N("Fibrous (connective tissue proper)","Connective tissue rich in fibers.",[
+N("Areolar (loose)","Packages organs and holds tissue fluid. Found under the skin and around organs."),
+N("Adipose (loose)","Stores fat, insulates, and cushions."),
+N("Reticular (loose)","A fine network that supports soft organs such as the spleen and lymph nodes."),
+N("Dense regular","Parallel collagen fibers, very strong in one direction. Found in tendons (muscle to bone) and ligaments (bone to bone)."),
+N("Dense irregular","Fibers running in many directions, giving strength in all directions. Found in the dermis of skin."),
+N("Elastic","Stretches and recoils. Found in artery walls.")]),
+N("Supportive","Firm connective tissue that supports the body.",[
+N("Cartilage","Flexible supportive tissue.",[
+N("Hyaline cartilage","Smooth, glassy, and the most common. Found in the nose, trachea, and ends of bones."),
+N("Elastic cartilage","Flexible and springy. Found in the outer ear."),
+N("Fibrocartilage","Tough and shock-absorbing. Found in discs between vertebrae.")]),
+N("Bone","Hard supportive tissue.",[
+N("Compact bone","The dense outer layer of bone."),
+N("Spongy bone","The porous, lighter inner layer inside bone ends.")])]),
+N("Fluid","Connective tissue with a liquid matrix.",[
+N("Blood","Plasma (the liquid matrix) plus blood cells.",[
+N("Plasma","The liquid matrix of blood."),
+N("Red blood cells (RBC)","Carry oxygen."),
+N("White blood cells (WBC)","Fight infection."),
+N("Platelets","Help blood clot.")]),
+N("Lymph","Fluid that returns tissue fluid to the blood and supports immune defense.")])]),
+N("Muscle tissue","Specialized for contraction, which produces movement.",[
+N("Skeletal muscle","Voluntary. Striated with long, multinucleate fibers. Attached to bones."),
+N("Cardiac muscle","Involuntary. Striated and branched, joined by intercalated discs. Found in the heart."),
+N("Smooth muscle","Involuntary. Not striated, with spindle-shaped cells. Found in the walls of organs, blood vessels, and intestines.")]),
+N("Nervous tissue","Sends and receives signals throughout the body: the brain, spinal cord, and nerves.",[
+N("Neurons","Nerve cells that conduct impulses.",[
+N("Dendrites","Receive signals and carry them toward the cell body."),
+N("Cell body","The part of the neuron that contains the nucleus."),
+N("Axon","Sends the signal away from the cell body.")]),
+N("Neuroglia (glial cells)","Cells that support, protect, and nourish neurons.")])
+]};
+let mode="plant",path=[];
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function node(p){let list=DATA[mode],n=null;for(const i of p){n=list[i];list=n.c}return n}
+function render(){
+document.body.dataset.mode=mode;
+$("t-plant").setAttribute("aria-pressed",mode==="plant");
+$("t-animal").setAttribute("aria-pressed",mode==="animal");
+$("list").innerHTML=DATA[mode].map((n,i)=>`<button class="part" data-i="${i}" aria-pressed="${path[0]===i}"><span class="dot">${i+1}</span><span>${esc(n.n)}<small>${n.c.length} part${n.c.length===1?"":"s"}</small></span></button>`).join("");
+const p=$("panel");
+if(!path.length){p.innerHTML=`<p class="empty">Tap a part on the left to see its meaning.</p>`;return}
+const cur=node(path);
+let crumbs="";
+for(let k=1;k<=path.length;k++){const nm=node(path.slice(0,k)).n;crumbs+=(k>1?"<span>/</span>":"")+`<button data-c="${k}">${esc(nm)}</button>`}
+const kids=cur.c.length?`<p class="lbl">Tap a smaller part to see its meaning:</p><div class="chips">${cur.c.map((c,j)=>`<button class="chip${c.c.length?" more":""}" data-j="${j}">${esc(c.n)}</button>`).join("")}</div>`:`<p class="end">No smaller parts. This is the end of the branch.</p>`;
+p.innerHTML=`<div class="body"><div class="crumbs">${crumbs}</div><h2>${esc(cur.n)}</h2><p class="meaning">${esc(cur.m)}</p>${kids}</div>`;
+}
+$("list").onclick=e=>{const b=e.target.closest("[data-i]");if(!b)return;path=[+b.dataset.i];render()};
+$("panel").onclick=e=>{
+const j=e.target.closest("[data-j]");if(j){path=path.concat(+j.dataset.j);render();return}
+const c=e.target.closest("[data-c]");if(c){path=path.slice(0,+c.dataset.c);render()}};
+$("t-plant").onclick=()=>{mode="plant";path=[];render()};
+$("t-animal").onclick=()=>{mode="animal";path=[];render()};
+render();
+</script>
+</body>
+</html>
